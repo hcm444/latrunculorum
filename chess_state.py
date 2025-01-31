@@ -1,91 +1,57 @@
 import chess
-import sys
 
 class ChessState(chess.Board):
-    """
-    Chessboard subclass implementing the interface needed for minimax
-    """
-    def __init__(self, evaluate=(lambda _: 0), memoize=False,  fen=None):
-        # evaluate is an heuristic function taking a board state
-        # and returning an approximate value.
-        self.evaluate = evaluate
+    def __init__(self, evaluate=None, memoize=False, fen=chess.STARTING_FEN):
+        self.evaluate = evaluate if evaluate else (lambda _: 0)
         self.memoize = memoize
-        if memoize:
-            self.values = dict()
-        super().__init__(fen=fen)
+        self.values = {} if memoize else None
+        super().__init__(fen=fen)  # Ensure the board is initialized with the correct FEN
+
 
     def __str__(self):
-        # Board representation
-        result = ['  ABCDEFGH']
+        result = ['  A B C D E F G H']
         for i in range(8):
-            line = [str(i+1), ' ']
+            row = [str(8 - i) + ' ']
             for j in range(8):
-                piece = self.piece_at(8*i+j)
-                if piece:
-                    line.append(piece.symbol())
-                else:
-                    line.append('#')
-            result.append(''.join(line))
-        return '\n'.join(reversed(result))
+                piece = self.piece_at(chess.square(j, 7 - i))
+                row.append(piece.symbol() if piece else '.')
+            result.append(' '.join(row))
+        return '\n'.join(result)
 
     def winner(self):
-        if (self.is_stalemate() or
-                self.is_insufficient_material() or
-                self.can_claim_draw()):
+        if self.is_stalemate() or self.is_insufficient_material() or self.can_claim_draw():
             return None
-
         if not self.is_game_over():
             return False
-
         return chess.WHITE if self.turn == chess.BLACK else chess.BLACK
 
     def hashable(self):
-        return (self.occupied_co[chess.WHITE],
-                self.occupied_co[chess.BLACK],
-                self.pawns,
-                self.knights,
-                self.bishops,
-                self.rooks,
-                self.queens,
-                self.kings)
+        return (
+            self.occupied_co[chess.WHITE],
+            self.occupied_co[chess.BLACK],
+            self.pawns, self.knights, self.bishops, self.rooks, self.queens, self.kings
+        )
 
     def value(self):
-        """Get ground value of state, if exists, or evaluate(state) if not."""
-        h = self.hashable()
+        if self.is_checkmate():
+            return float("-1000") if self.turn == chess.WHITE else float(
+                "1000")  # Assign a large positive/negative value
+        if self.is_stalemate() or self.is_insufficient_material() or self.can_claim_draw():
+            return 0  # Draw positions should be evaluated as 0
 
-        if self.memoize and h in self.values:
-            return self.values[h]
-
-        result = None
-
-        winner = self.winner()
-
-        if winner == False:
-            # Game's not over
-            result = self.evaluate(self)
-        elif winner is None:
-            # Draws are neutral
-            result = 0
-        else:
-            # Good for winner, bad for loser
-            result = float("inf" if winner == chess.BLACK else "-inf")
-
-        if self.memoize:
-            self.values[h] = result
-            
-        return result
+        # Default evaluation
+        return self.evaluate(self)
 
     def moves(self):
-        for move in self.generate_legal_moves():
+        for move in self.legal_moves:
             self.push(move)
-            yield (move, self)
+            yield move, self
             self.pop()
 
     def do(self, move):
-        """Return a new board resulting from the current player taking move"""
-        result = ChessState(evaluate=self.evaluate, fen=self.fen(), memoize=self.memoize)
-        result.push(move)
-        return result
+        new_state = ChessState(evaluate=self.evaluate, fen=self.fen(), memoize=self.memoize)
+        new_state.push(move)
+        return new_state
 
     def is_terminal(self):
         return self.is_game_over()
