@@ -1,14 +1,11 @@
 import argparse
+import io
 import chess
-import sys
 import chess_state
 import evaluators
 import minimax
-import time
-
 argparser = argparse.ArgumentParser()
 argparser.add_argument('--player', "-p", default="white", type=str, help="'[w]hite' or '[b]lack'; the bot player's color")
-
 class Bot:
     def reset_game(self):
         self.state.reset()
@@ -48,6 +45,19 @@ class Bot:
                 self.state.values.clear()
             self.state.push(move)
 
+    def analyze_position(self, fen):
+        """Analyze a given FEN position and return the evaluation score."""
+        self.state.board = chess.Board(fen)  # Load the position
+        self.player = self.state.board.turn  # Update the player's turn
+
+        value, _ = minimax.alphabeta(
+            self.state,
+            player=minimax.MAX if self.player == chess.WHITE else minimax.MIN,
+            maxdepth=self.searchdepth
+        )
+        return value
+
+
 class Supervisor:
     def __init__(self, number):
         self.bots = [Bot() for _ in range(number)]
@@ -79,14 +89,14 @@ def main():
 def main1(player=chess.WHITE, searchdepth=5):
     b = Bot(player=player, searchdepth=searchdepth)
     print("Initial Board State:")
-    print(b.state, "\n")  # ✅ Fix applied
+    print(b.state, "\n")
 
     if player == chess.WHITE:
         value, m = b.choose_move()
         if m:
             print(value, m.uci())
             b.make_move(m)
-            print(b.state, "\n")  # ✅ Fix applied
+            print(b.state, "\n")
 
     while True:
         try:
@@ -120,3 +130,39 @@ def main1(player=chess.WHITE, searchdepth=5):
 if __name__ == "__main__":
     args = argparser.parse_args()
     main1(player=chess.WHITE if args.player.lower().startswith("w") else chess.BLACK)
+
+
+def analyze_pgn(pgn_data):
+    """Analyze all moves in a PGN file with a lower depth for faster performance."""
+    game = chess.pgn.read_game(io.StringIO(pgn_data))
+    if game is None:
+        return []
+
+    bot = Bot(searchdepth=3)  # Reduce depth from 5 → 3 for speed
+    bot.state.board = game.board()
+
+    analysis_results = []
+    move_number = 1
+
+    for move in game.mainline_moves():
+        bot.make_move(move)
+        evaluation = bot.analyze_position(bot.state.fen())
+
+        try:
+            move_san = bot.state.board.san(move)
+        except (AssertionError, ValueError):
+            move_san = move.uci()
+
+        analysis_results.append({
+            "move_number": move_number,
+            "move_san": move_san,
+            "fen": bot.state.fen(),
+            "evaluation": evaluation
+        })
+
+        move_number += 1
+
+    return analysis_results
+
+
+
