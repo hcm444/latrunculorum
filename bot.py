@@ -131,7 +131,7 @@ if __name__ == "__main__":
     args = argparser.parse_args()
     main1(player=chess.WHITE if args.player.lower().startswith("w") else chess.BLACK)
 
-
+#Handler to use as a PGN analyzer. It actually worked on my local website
 def analyze_pgn(pgn_data):
     """Analyze all moves in a PGN file with a lower depth for faster performance."""
     game = chess.pgn.read_game(io.StringIO(pgn_data))
