@@ -2,54 +2,31 @@ import chess
 import chess_state
 
 class MaterialEvaluator(object):
-    """
-    Simple evaluator based on the material on the board.
-
-    Uses basic piece values by default, but can be set up with other values.
-    """
     def __init__(self, q=9, r=5, b=3, n=3, p=1):
         self.q, self.r, self.b, self.n, self.p = q, r, b, n, p
         self.values = {
-                chess.PAWN: p,
-                chess.KNIGHT: n,
-                chess.BISHOP: b,
-                chess.ROOK: r,
-                chess.QUEEN: q,
-                }
+            chess.PAWN: p,
+            chess.KNIGHT: n,
+            chess.BISHOP: b,
+            chess.ROOK: r,
+            chess.QUEEN: q,
+        }
 
     def __call__(self, board):
         acc = 0
-        for i in range(64):
-            piece = board.piece_at(i)
-
-            if not piece:
-                continue
-
-            if piece.color == chess.WHITE:
-                acc += self.values.get(piece.piece_type, 0)
-            else:
-                acc -= self.values.get(piece.piece_type, 0)
-
+        for square, piece in board.piece_map().items():  # More efficient iteration
+            acc += self.values.get(piece.piece_type, 0) * (1 if piece.color == chess.WHITE else -1)
         return acc
+
 
 center = set([chess.D4, chess.D5, chess.E4, chess.E5])
 
 class CenterControlEvaluator(object):
     def __call__(self, board):
         acc = 0
-
         for move in board.legal_moves:
-            if move_to_square in center:
+            if move.to_square in center:  # Fix undefined variable
                 acc += (1 if board.turn == chess.WHITE else -1)
-
-        board.push(Move(None, None))
-
-        for move in board.legal_moves:
-            if move.to_square in center:
-                acc += (1 if board.turn == chess.WHITE else -1)
-
-        board.pop()
-
         return acc
 
 
