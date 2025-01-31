@@ -10,6 +10,11 @@ argparser = argparse.ArgumentParser()
 argparser.add_argument('--player', "-p", default="white", type=str, help="'[w]hite' or '[b]lack'; the bot player's color")
 
 class Bot:
+    def reset_game(self):
+        self.state.reset()
+        self.state.board = chess.Board()  # Ensure proper starting position
+        self.player = chess.WHITE
+
     def __init__(self, player=chess.WHITE, searchdepth=5, evaluate=None, transposition_tables=True):
         self.state = chess_state.ChessState(
             evaluate=evaluate if evaluate else evaluators.MaterialEvaluator(),
@@ -73,33 +78,44 @@ def main():
 
 def main1(player=chess.WHITE, searchdepth=5):
     b = Bot(player=player, searchdepth=searchdepth)
+    print("Initial Board State:")
+    print(b.state, "\n")  # ✅ Fix applied
+
     if player == chess.WHITE:
         value, m = b.choose_move()
         if m:
             print(value, m.uci())
             b.make_move(m)
-            print(b.state, "\n")
+            print(b.state, "\n")  # ✅ Fix applied
+
     while True:
         try:
-            m = chess.Move.from_uci(input("Your move: "))
+            move_str = input("Your move: ")
+            m = chess.Move.from_uci(move_str)
             if not b.state.is_legal(m):
                 raise ValueError
         except ValueError:
             print("Illegal move! Try again.")
             continue
+
         b.make_move(m)
         print(b.state, "\n")
+
         if b.state.is_game_over():
             print("Game over!")
             break
+
         value, m = b.choose_move()
         if m:
             print(value, m.uci())
             b.make_move(m)
             print(b.state, "\n")
+
         if b.state.is_game_over():
             print("Game over!")
             break
+
+
 
 if __name__ == "__main__":
     args = argparser.parse_args()
