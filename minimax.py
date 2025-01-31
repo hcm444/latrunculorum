@@ -17,11 +17,11 @@ class MinimaxState(object):
     def value(self):
         """
         Get the value of a state.
-        
+
         Returns the final score corresponding to this state if it's terminal,
         or a heuristic estimate if not.
         """
-        raise NotImplementedError 
+        raise NotImplementedError
 
     def moves(self):
         raise NotImplementedError
@@ -57,29 +57,33 @@ def minimax(state, player=MAX, maxdepth=-1):
 # due to the generate_legal_moves method.
 def max_value(state, alpha, beta, depth, player):
     if state.is_terminal() or depth == 0:
-        return (None, state.value())
+        return (None, state.value())  # Fix: Use `state.value()`
 
-    v = float("-inf") * player
-    best = None
-    worse = (lambda a, b: a < b) if (player == MAX) else (lambda a, b: a > b)
+    best_move = None
+    best_value = float("-inf") if player == MAX else float("inf")
+    compare = max if player == MAX else min
 
     for move in state.generate_legal_moves():
         state.push(move)
-        _, result = max_value(state, alpha, beta, (depth-1), -player)
+        _, result = max_value(state, alpha, beta, depth - 1, -player)
         state.pop()
-        if result is not None and worse(v, result):
-            v = result
-            best = move
-        if not worse(v, beta if player == MAX else alpha):
-            return (move, v)
 
-        if worse(alpha, v) and player == MAX:
-            alpha = v
-        if worse(beta, v) and player == MIN:
-            beta = v
+        if compare(result, best_value) == result:
+            best_value = result
+            best_move = move
 
-    return (best, v)
+        if player == MAX:
+            alpha = max(alpha, best_value)
+        else:
+            beta = min(beta, best_value)
+
+        if beta <= alpha:
+            break  # Prune the search
+
+    return best_move, best_value
+
 
 def alphabeta(state, player=MAX, maxdepth=6):
     v, move = max_value(state, float("-inf"), float("inf"), maxdepth, player)
     return move, v
+
